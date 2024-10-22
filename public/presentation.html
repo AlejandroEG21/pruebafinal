@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentación de Publicidad</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black flex items-center justify-center h-screen">
+  <div id="template-container" class="w-full h-full"></div>
+  <div id="article-container" class="absolute bottom-0 left-0 right-0 bg-yellow-100 p-4 text-center hidden">
+    <h2 class="text-2xl font-bold">Artículos Recibidos</h2>
+    <ul id="article-list" class="list-none p-0 m-0"></ul>
+  </div>
+
+  <script>
+    let currentTemplate = null;
+    let currentArticles = [];
+
+    function renderTemplate(template) {
+      const container = document.getElementById('template-container');
+      container.innerHTML = ''; // Limpiar el contenedor
+
+      // Crear el contenedor principal con los estilos de la plantilla
+      const templateDiv = document.createElement('div');
+      templateDiv.style.backgroundColor = template.webProperties.backgroundColor;
+      templateDiv.style.color = template.webProperties.textColor;
+      templateDiv.className = 'w-full h-full relative';
+
+      // Renderizar formas de fondo
+      template.webProperties.backgroundShapes.forEach(shape => {
+        const shapeDiv = document.createElement('div');
+        shapeDiv.style.position = 'absolute';
+        shapeDiv.style.left = `${shape.position.x}%`;
+        shapeDiv.style.top = `${shape.position.y}%`;
+        shapeDiv.style.width = `${shape.size}%`;
+        shapeDiv.style.height = `${shape.size}%`;
+        shapeDiv.style.backgroundColor = shape.color;
+        shapeDiv.style.opacity = shape.opacity;
+
+        if (shape.type === 'circle') {
+          shapeDiv.style.borderRadius = '50%';
+        } else if (shape.type === 'triangle') {
+          shapeDiv.style.width = '0';
+          shapeDiv.style.height = '0';
+          shapeDiv.style.backgroundColor = 'transparent';
+          shapeDiv.style.borderLeft = `${shape.size / 2}% solid transparent`;
+          shapeDiv.style.borderRight = `${shape.size / 2}% solid transparent`;
+          shapeDiv.style.borderBottom = `${shape.size}% solid ${shape.color}`;
+        }
+
+        templateDiv.appendChild(shapeDiv);
+      });
+
+      // Renderizar componentes
+      template.components.forEach(component => {
+        const componentDiv = document.createElement('div');
+        componentDiv.style.position = 'absolute';
+        componentDiv.style.left = `${component.position.x}%`;
+        componentDiv.style.top = `${component.position.y}%`;
+        componentDiv.style.width = `${component.size.width}%`;
+        componentDiv.style.height = `${component.size.height}%`;
+        componentDiv.style.display = 'flex';
+        componentDiv.style.alignItems = 'center';
+        componentDiv.style.justifyContent = 'center';
+        componentDiv.style.overflow = 'hidden';
+
+        if (component.type === 'text') {
+          componentDiv.textContent = component.content;
+          componentDiv.style.fontSize = `${component.fontSize || 16}px`;
+          componentDiv.style.fontFamily = component.fontFamily || 'Arial, sans-serif';
+        } else if (component.type === 'image') {
+          const img = document.createElement('img');
+          img.src = component.content;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          componentDiv.appendChild(img);
+        } else if (component.type === 'number') {
+          componentDiv.textContent = component.content;
+        }
+
+        templateDiv.appendChild(componentDiv);
+      });
+
+      container.appendChild(templateDiv);
+    }
+
+    function updateArticleInfo(articles) {
+      const articleContainer = document.getElementById('article-container');
+      const articleList = document.getElementById('article-list');
+      
+      if (articles && articles.length > 0) {
+        articleList.innerHTML = '';
+        articles.forEach(article => {
+          const li = document.createElement('li');
+          li.textContent = `${article.name} - $${article.price.toFixed(2)}`;
+          li.className = 'text-xl mb-1';
+          articleList.appendChild(li);
+        });
+        articleContainer.classList.remove('hidden');
+      } else {
+        articleContainer.classList.add('hidden');
+      }
+    }
+
+    // Escuchar mensajes del navegador principal
+    navigator.presentation.receiver.connectionList.then(list => {
+      list.connections.forEach(connection => {
+        connection.addEventListener('message', event => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            currentTemplate = data.template;
+            currentArticles = data.articles;
+            renderTemplate(currentTemplate);
+            updateArticleInfo(currentArticles);
+          }
+        });
+      });
+
+      list.addEventListener('connectionavailable', event => {
+        event.connection.addEventListener('message', event => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            currentTemplate = data.template;
+            currentArticles = data.articles;
+            renderTemplate(currentTemplate);
+            updateArticleInfo(currentArticles);
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
